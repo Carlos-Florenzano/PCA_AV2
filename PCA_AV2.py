@@ -4,10 +4,10 @@ import numpy as np
 
 
 '''
-STATUS DO CÓDIGO (11/12/2025): 
+STATUS DO CÓDIGO (11/12/2025 - Versão com Exclusão): 
 - INSERIR (1): OK.
-- PESQUISAR (2): OK, com correção de leitura (header=None) e limpeza de strings.
-- EDITAR (3): Implementado e funcional.
+- PESQUISAR (2): OK.
+- EDITAR/DELETAR (3): OK (Além da opção de editar, agora temos a de excluir o registro inteiro).
 '''
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,22 +40,20 @@ def menu(dados_armazenados, menu_pesquisar, editar_registro):
             
         elif numero_pressionado == 4:
             print("PROGRAMA ENCERRADO COM ÊXITO")
-            break # break pra fechar o programa
+            break
             
         else:
-            print("POR FAVOR DIGITE CORRETAMENTE PARA A FUNÇÃO DESEJADA.")
+            print("PRESSIONE UM NÚMERO QUE SEJA CORRESPONDENTE.")
 
 
 def gerar_proxima_matricula():
     """
     Gera o próximo número de matrícula sequencial lendo o último
-    registro no arquivo CSV.
-    CORRIGIDO: Leitura robusta com header=None para evitar o bug do 'nan'.
+    registro no arquivo CSV (leitura robusta com header=None).
     """
     MATRICULA_INICIAL = 0 
     
     try:
-        # CORREÇÃO: Usando a leitura robusta (header=None)
         dados_permanentes = pd.read_csv(
             ARQUIVO_CSV, 
             sep=',', 
@@ -65,20 +63,16 @@ def gerar_proxima_matricula():
             names=COLUNAS_ESPERADAS
         )
         
-        # Limpa e converte a coluna antes de buscar o máximo
-        # O preenchimento com -1 ajuda a garantir que o max() não retorne 0 se o arquivo estiver vazio
+        # Converte a coluna antes de buscar o máximo
         dados_permanentes['matricula'] = pd.to_numeric(
             dados_permanentes['matricula'], errors='coerce'
         ).fillna(-1).astype(int)
         
-        # Se o DataFrame estiver vazio após a leitura, retorna a inicial
         if dados_permanentes.empty or dados_permanentes['matricula'].max() == -1:
              return MATRICULA_INICIAL
 
-        # Usa .max() para encontrar o maior número de matrícula
         ultima_matricula = dados_permanentes['matricula'].max()
         
-        # Retorna a próx. matrícula
         return ultima_matricula + 1
         
     except (FileNotFoundError, pd.errors.EmptyDataError):
@@ -144,7 +138,6 @@ def menu_pesquisar():
 
         if numero_pressionado == 1:
             try:
-                # LER: CORRIGIDO com header=None
                 dados_permanentes = pd.read_csv(
                     ARQUIVO_CSV, 
                     sep=',', 
@@ -154,21 +147,16 @@ def menu_pesquisar():
                     names=COLUNAS_ESPERADAS
                 )
                 
-                # Garante que as colunas lidas sejam limpas (embora names já as defina)
                 dados_permanentes.columns = dados_permanentes.columns.str.strip().str.replace('"', '').str.lower()
-                
-                # CORREÇÃO DEFINITIVA: Limpeza do conteúdo da COLUNA 'NOME' no DataFrame
                 dados_permanentes['nome'] = dados_permanentes['nome'].astype(str).str.strip().str.lower()
                 
                 if 'nome' not in dados_permanentes.columns:
-                     print("\n>> ERRO INESPERADO: A COLUNA 'NOME' NÃO FOI ENCONTRADA MESMO COM A CORREÇÃO.")
+                     print("\n>> ERRO INESPERADO: A COLUNA 'NOME' NÃO FOI ENCONTRADA.")
                      continue
                 
-                # Filtragem: O input do usuário também é limpo e padronizado
                 nome_a_pesquisar = input("DIGITE O NOME COMPLETO QUE VOCÊ DESEJA BUSCAR: ").strip().lower()
                 resultado_filtrado = dados_permanentes[dados_permanentes["nome"] == nome_a_pesquisar]
 
-                # Imprime o resultado
                 if resultado_filtrado.empty:
                     print(f"\n>> NENHUM REGISTRO ENCONTRADO PARA O NOME: {nome_a_pesquisar}")
                 else:
@@ -183,7 +171,6 @@ def menu_pesquisar():
             
         elif numero_pressionado == 2:
             try:
-                # LER: CORRIGIDO com header=None
                 dados_permanentes = pd.read_csv(
                     ARQUIVO_CSV, 
                     sep=',', 
@@ -196,7 +183,6 @@ def menu_pesquisar():
                 dados_permanentes.columns = dados_permanentes.columns.str.strip().str.replace('"', '').str.lower()
                 
                 if 'matricula' in dados_permanentes.columns:
-                    # Converte para numérico, preenchendo erros com -1
                     dados_permanentes['matricula'] = pd.to_numeric(
                         dados_permanentes['matricula'], errors='coerce'
                     ).fillna(-1).astype(int)
@@ -233,20 +219,35 @@ def menu_pesquisar():
 
 def editar_registro():
     """
-    Permite ao usuário buscar um registro por matrícula e modificar seus campos.
+    Permite ao usuário buscar um registro por matrícula para editar, apagar campos ou deletar o registro inteiro.
+    Comandos especiais: DIGITAR 'APAGAR' para deletar o campo.
     """
     
     print("\n--- INICIAR EDIÇÃO DE REGISTRO ---")
     
-    # 1. Solicitar a matrícula para buscar o registro
+    # 1. Escolha de Ação
+    print("AÇÕES DISPONÍVEIS:")
+    print("1 - EDITAR CAMPOS ESPECÍFICOS (OU APAGAR UM CAMPO)")
+    print("2 - EXCLUIR REGISTRO INTEIRO")
+    print("3 - VOLTAR\n")
+    
     try:
-        matricula_input = input("DIGITE A MATRÍCULA DO REGISTRO QUE DESEJA EDITAR: ")
-        matricula_a_editar = int(matricula_input)
+        acao = int(input("~ : ").strip())
+    except ValueError:
+        return ">> ERRO: POR FAVOR, DIGITE APENAS O NÚMERO DA AÇÃO DESEJADA."
+
+    if acao == 3:
+        return "" # Volta ao menu principal
+    
+    # 2. Solicitar a matrícula para buscar o registro
+    try:
+        matricula_input = input("\nDIGITE A MATRÍCULA DO REGISTRO QUE DESEJA MANIPULAR: ")
+        matricula_a_manipular = int(matricula_input)
     except ValueError:
         return ">> ERRO: MATRÍCULA DEVE SER UM NÚMERO."
     
     try:
-        # 2. Ler o arquivo completo (com header=None)
+        # 3. Ler o arquivo completo
         dados_permanentes = pd.read_csv(
             ARQUIVO_CSV, 
             sep=',', 
@@ -262,62 +263,85 @@ def editar_registro():
             dados_permanentes['matricula'], errors='coerce'
         ).fillna(-1).astype(int)
         
-        # 3. Localizar a linha
-        registro_index = dados_permanentes[dados_permanentes['matricula'] == matricula_a_editar].index
+        # 4. Localizar a linha
+        registro_index = dados_permanentes[dados_permanentes['matricula'] == matricula_a_manipular].index
         
         if registro_index.empty:
-            return f">> ERRO: REGISTRO COM MATRÍCULA {matricula_a_editar} NÃO ENCONTRADO."
+            return f">> ERRO: REGISTRO COM MATRÍCULA {matricula_a_manipular} NÃO ENCONTRADO."
         
-        # Indexa o registro único (retorna o índice da linha)
         idx = registro_index[0]
         
-        print("\nREGISTRO ATUAL:")
-        # Imprime o registro formatado, pulando a matrícula
-        print(dados_permanentes.loc[idx, COLUNAS_ESPERADAS[1:]].to_string())
-        print("----------------------------")
-        
-        # 4. Oferecer opções de edição
-        campos_editaveis = COLUNAS_ESPERADAS[1:] # Todos os campos exceto 'matricula'
-        
-        for campo in campos_editaveis:
-            valor_atual = dados_permanentes.loc[idx, campo]
+        # --- AÇÃO 2: EXCLUSÃO DE REGISTRO INTEIRO ---
+        if acao == 2:
+            print(f"\n--- EXCLUSÃO PERMANENTE DO REGISTRO MATRÍCULA {matricula_a_manipular} ---")
+            confirmacao = input("CONFIRMAR EXCLUSÃO PERMANENTE? (DIGITE 'SIM'): ").strip().upper()
             
-            # Garante que o valor atual é uma string limpa para exibição (necessário se for nan ou float)
-            valor_display = str(valor_atual).strip().lower()
-            if valor_display == 'nan':
-                 valor_display = 'VAZIO'
-            
-            novo_valor = input(
-                f"EDITAR '{campo.upper()}' (ATUAL: {valor_display}) | DIGITE NOVO VALOR OU DEIXE EM BRANCO PARA MANTER: \n~ : "
-            ).strip()
-            
-            if novo_valor:
-                # Trata números (idade, num_casa, telefone)
-                if campo in ['idade', 'num_casa', 'telefone']:
-                    try:
-                        novo_valor = int(novo_valor)
-                    except ValueError:
-                        print(f">> ATENÇÃO: VALOR INVÁLIDO PARA {campo.upper()}. VALOR ORIGINAL MANTIDO.")
-                        continue
+            if confirmacao == 'SIM':
+                # Deleta a linha do DataFrame
+                dados_permanentes = dados_permanentes.drop(index=idx).reset_index(drop=True)
                 
-                # Padroniza strings
-                elif campo in ['nome', 'bairro', 'cidade', 'uf', 'email']:
-                    # Padroniza apenas o nome/localidades para minúsculas
-                    if campo in ['nome', 'bairro', 'cidade', 'uf']:
-                        novo_valor = novo_valor.lower()
-                    
-                # Aplica a mudança no DataFrame
-                dados_permanentes.loc[idx, campo] = novo_valor
-                print(f">> CAMPO '{campo.upper()}' ATUALIZADO PARA: {novo_valor}")
+                # Sobrescreve o arquivo com a exclusão
+                dados_permanentes.to_csv(ARQUIVO_CSV, mode='w', header=True, index=False, sep=',', encoding='utf-8')
+                return f"\n>> SUCESSO! REGISTRO (MATRÍCULA {matricula_a_manipular}) FOI EXCLUÍDO DEFINITIVAMENTE."
+            else:
+                return ">> AÇÃO CANCELADA PELO USUÁRIO."
 
-        # 5. Salvar o DataFrame completo (sobrescrever)
-        # CORREÇÃO: Sobrescreve o arquivo com o DataFrame completo, sempre com cabeçalho
-        dados_permanentes.to_csv(ARQUIVO_CSV, mode='w', header=True, index=False, sep=',', encoding='utf-8')
+        # --- AÇÃO 1: EDIÇÃO DE CAMPOS ESPECÍFICOS ---
+        elif acao == 1:
+            print("\nREGISTRO ATUAL:")
+            print(dados_permanentes.loc[idx, COLUNAS_ESPERADAS[1:]].to_string())
+            print("------------------------------------------------------------------------------------------------------")
+            print("DICAS: DIGITE 'APAGAR' para remover o valor de um campo | Deixe em branco (Enter) para manter o valor atual")
+            print("----------------------------")
+            
+            campos_editaveis = COLUNAS_ESPERADAS[1:] # Todos os campos exceto 'matricula'
+            
+            for campo in campos_editaveis:
+                valor_atual = dados_permanentes.loc[idx, campo]
+                
+                valor_display = str(valor_atual).strip().lower()
+                if valor_display == 'nan':
+                    valor_display = 'VAZIO'
+                
+                novo_valor_input = input(
+                    f"EDITAR '{campo.upper()}' (ATUAL: {valor_display}) | NOVO VALOR, APAGAR ou ENTER: \n~ : "
+                ).strip()
+                
+                if novo_valor_input.upper() == 'APAGAR':
+                    # Ação de deletar o valor do campo (NaN no Pandas)
+                    dados_permanentes.loc[idx, campo] = np.nan
+                    print(f">> CAMPO '{campo.upper()}' FOI APAGADO.")
+                    continue
+                
+                if novo_valor_input:
+                    # Substituição do valor
+                    
+                    if campo in ['idade', 'num_casa', 'telefone']:
+                        try:
+                            novo_valor = int(novo_valor_input)
+                        except ValueError:
+                            print(f">> ATENÇÃO: VALOR INVÁLIDO PARA {campo.upper()} (ESPERADO NÚMERO). VALOR ORIGINAL MANTIDO.")
+                            continue
+                    
+                    elif campo in ['nome', 'bairro', 'cidade', 'uf']:
+                        novo_valor = novo_valor_input.lower()
+                    else: # email, etc.
+                        novo_valor = novo_valor_input
+                        
+                    # Aplica a mudança no DataFrame
+                    dados_permanentes.loc[idx, campo] = novo_valor
+                    print(f">> CAMPO '{campo.upper()}' ATUALIZADO PARA: {novo_valor_input}")
+
+            # 5. Salvar o DataFrame completo (sobrescrever)
+            dados_permanentes.to_csv(ARQUIVO_CSV, mode='w', header=True, index=False, sep=',', encoding='utf-8')
+            
+            return f"\n>> SUCESSO! REGISTRO (MATRÍCULA {matricula_a_manipular}) FOI ATUALIZADO E SALVO."
         
-        return f"\n>> SUCESSO! REGISTRO (MATRÍCULA {matricula_a_editar}) FOI ATUALIZADO E SALVO."
+        else:
+            return ">> OPÇÃO INVÁLIDA NO MENU DE AÇÕES."
         
     except pd.errors.EmptyDataError:
-        return "\n>> ARQUIVO DE DADOS VAZIO. NADA PARA EDITAR."
+        return "\n>> ARQUIVO de DADOS VAZIO. NADA PARA EDITAR."
     except FileNotFoundError:
         return "\n>> ERRO: O ARQUIVO DE DADOS NÃO FOI ENCONTRADO."
     except Exception as e:
